@@ -22,29 +22,39 @@
   @return argn : The length of the array
 */
 
-int parse(char*line, char***_args, char*delim){
-	
-	*_args = malloc(sizeof(char*));
-	char** args = *_args;
-	
-	
-	if (line[(strlen(line)-1)]=='\n'){
-		line[strlen(line)-1]='\0'; //clean trailing new line, WILL SEGFAULT IF LINE NOT MEMORY ALLOCATED!
-	}
-	
-	char*buf, *ptr;
-	int argn = 0;
-	buf = strtok_r (line,delim,&ptr);
-	args[argn++]=strdup(buf);
-	
-	while((buf=strtok_r(NULL,delim,&ptr))!=NULL){
-		args[argn++]=strdup(buf);
-	}
-	
-	args[argn]=NULL; 
-	
-	return argn; 
+char ** parse(char*line,char*delim){
 
+	char**array=malloc(sizeof(char*));
+	*array=NULL;
+	int n = 0;
+
+	char*buf = strtok(line,delim);
+
+	if (buf == NULL){
+		free(array);
+		array=NULL;
+		return array;
+	}
+
+	while(buf!=NULL ){
+
+		char**temp = realloc(array,(n+2)*sizeof(char*));
+
+		if(temp==NULL){
+			free(array);
+			array=NULL;
+			return array;
+		}
+
+		array=temp;
+		temp[n++]=buf;
+		temp[n]=NULL;
+
+		buf = strtok(NULL,delim);
+
+	}
+
+	return array;
 }
 
 /*Returns index of first instance of char * special*/
@@ -86,40 +96,25 @@ FILE *getInput(int argc, char* argv[]){
 }
 
 
-
 /*
   Demonstration main()
 */
 int main(){
-  
-  char**an_array;//=malloc(sizeof(char*));
-  char*delim=" ";
-  char*demo_line="a line of text\n";
-  char*line = strdup(demo_line); //line must be memory allocated
-  
-  printf("%s\n",line);
-  
-  int argn = parse(line,&an_array," \t\n");
-  
-  printf("argn:%d\n",argn);
-  
-  int i=0;
-  while(an_array[i]!=NULL){
-    printf("%s\n",an_array[i++]);
 
-  }
-  while(i!=0) 
-    free(an_array[i--]);
-  free(an_array);
-  
-  char**another_array;
-  char*another_demo_line = "another demo & line > with < special >> tokens |";
-  char*another_memallocated_line = strdup(another_demo_line);
-  
-  parse(another_memallocated_line,&another_array," \t\n");
-  
-  printf("&:%d,>:%d,<:%d,>>:%d,|:%d\n",find_special(another_array,"&"),find_special(another_array,">"),find_special(another_array,"<"),find_special(another_array,">>"),find_special(another_array,"|"));
-  
+	char _line[1000] = "a line of text\n";
+	char * line = strdup(_line);
+	char ** array = parse(line," \n");
+
+	if (array==NULL)
+		exit(1);
+
+	int i = 0;
+	while (array[i]!=NULL)
+		printf("%s\n",array[i++]);
+
+	free(array);
+	free(line);
+
 }
 
 
