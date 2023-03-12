@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-#include "helpers.h"
 
 /*
   Function to break up a line (or any arbitrary string) into a memory allocated
@@ -99,22 +98,22 @@ FILE *getInput(int argc, char* argv[]){
 /*
   Demonstration main()
 */
-int main(){
+// int main(){
 
-	char _line[1000] = "a line of text\n";
-	char * line = strdup(_line);
-	char ** array = parse(line," \n");
+// 	char _line[1000] = "a line of text\n";
+// 	char * line = strdup(_line);
+// 	char ** array = parse(line," \n");
 
-	if (array==NULL)
-		exit(1);
+// 	if (array==NULL)
+// 		exit(1);
 
-	int i = 0;
-	while (array[i]!=NULL)
-		printf("%s\n",array[i++]);
+// 	int i = 0;
+// 	while (array[i]!=NULL)
+// 		printf("%s\n",array[i++]);
 
-	free(array);
-	free(line);
+// 	free(array);
+// 	free(line);
 
-}
+// }
 
 
