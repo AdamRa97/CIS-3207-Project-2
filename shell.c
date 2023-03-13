@@ -4,7 +4,11 @@
 #include <unistd.h>
 #include "helpers.h"
 
-int main(void){
+void pwd(void);
+void cd(void);
+void help(void);
+
+int main(){
     char input[1024];
 
     while (1){
@@ -16,24 +20,24 @@ int main(void){
         if (array == NULL)
             exit(1);
 
-        int i = 0;
-        while (array[i] != NULL)
-            printf("s\n",array[i++]);
-        free(array);
-        free(line);
+    //     int i = 0;
+    //     while (array[i] != NULL)
+    //         printf("hello");
+    //     free(array);
+    //     free(line);
     }
 
     return 0;
 }
 
 void pwd(void){
-    return 0;
+    printf("hello");
 }
 
 void cd(void){
-    return 0;
+    printf("hello");
 }
 
 void help(void){
-    return 0;
+    printf("hello");
 }
