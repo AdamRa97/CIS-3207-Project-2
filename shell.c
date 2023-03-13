@@ -8,8 +8,20 @@ void pwd(void);
 void cd(void);
 void help(void);
 
+typedef struct{
+    const char *name;
+    void (*func)(void);
+} command;
+
 int main(){
     char input[1024];
+    command commands[] = {
+        {"pwd", pwd},
+        {"cd", cd},
+        {"help", help}
+    };
+
+    printf("%s\n",commands[0].name);
 
     while (1){
         printf("> ");
@@ -23,10 +35,11 @@ int main(){
         int i = 0;
         while (array[i] != NULL)
             printf("%s\n",array[i++]);
+
+        
         free(array);
         free(line);
     }
-
     return 0;
 }
 
