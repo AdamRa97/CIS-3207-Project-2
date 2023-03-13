@@ -20,11 +20,11 @@ int main(){
         if (array == NULL)
             exit(1);
 
-    //     int i = 0;
-    //     while (array[i] != NULL)
-    //         printf("hello");
-    //     free(array);
-    //     free(line);
+        int i = 0;
+        while (array[i] != NULL)
+            printf("%s\n",array[i++]);
+        free(array);
+        free(line);
     }
 
     return 0;

@@ -115,5 +115,3 @@ FILE *getInput(int argc, char* argv[]){
 // 	free(line);
 
 // }
-
-
