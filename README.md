@@ -108,3 +108,10 @@ Modify your shell so that it runs commands that end in an & in the background. O
 
 You should also add a new built-in command wait, which waits until all background jobs have terminated before returning to the prompt.
 You can assume that there will always be spaces around the & character. You can assume that, if there is a & character, it will be the last token on that line. 
+
+
+
+# Adam Ra Documentation
+
+## Pseudocode
+blah blah blah
