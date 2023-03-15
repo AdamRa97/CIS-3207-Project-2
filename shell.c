@@ -6,7 +6,7 @@
 #include "helpers.h"
 
 int pwd(void);
-int cd(void);
+int cd(char *dir);
 int help(void);
 int (*find_command(char *name))(void);
 
@@ -23,13 +23,19 @@ int main(){
         if (array == NULL || array[0] == NULL)
             continue;
 
-        int i = 0;
-        while (array[i] != NULL){
-            int (*command_func)(void) = find_command(array[i++]);
+        // First checking if 'cd' was entered in; else search through if the other commands were entered
+        if (strcmp(array[0], "cd") == 0) {
+            // Call the 'cd' function with the specified directory
+            cd(array[1]);
+        }
+        else{
+            int i = 0;
+            while (array[i] != NULL){
+                int (*command_func)(void) = find_command(array[i++]);
 
-            if (command_func != NULL)
-                command_func();
-            
+                if (command_func != NULL)
+                    command_func();
+            }
         }
 
         free(line);
@@ -49,14 +55,29 @@ int pwd(void){
     return 0;
 }
 
-int cd(void){
+int cd(char *dir){
+    // If no directory was specified, change to the user's home directory
+    if (dir == NULL) {
+        dir = getenv("HOME");
+        if (dir == NULL) {
+            perror("cd: error: could not get home directory");
+            return 1;
+        }
+    }
+
+    // Change to the specified directory
+    if (chdir(dir) != 0) {
+        perror("cd: error");
+        return 1;
+    }
+
     return 0;
 }
 
 int help(void){
     printf("pwd: prints out current working directory\n");
     printf("help: prints out built-in commands and their descriptions\n");
-    printf("cd: changes directory\n");
+    printf("cd [path]: changes directory; if no path is entered then you go to the root directory\n");
     printf("exit: exits the shell\n");
     return 0;
 }
@@ -65,8 +86,6 @@ int help(void){
 int (*find_command(char *name))(void) {
     if (strcmp(name, "pwd") == 0)
         return &pwd;
-    else if (strcmp(name, "cd") == 0)
-        return &cd;
     else if (strcmp(name, "help") == 0)
         return &help;
     else if (strcmp(name, "exit") == 0)
