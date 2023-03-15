@@ -2,53 +2,34 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "helpers.h"
 #include <stdbool.h>
+#include "helpers.h"
 
 int pwd(void);
 int cd(void);
 int help(void);
 int (*find_command(char *name))(void);
 
-// A struct designed for commands, has name property and a pointer to the func
-// typedef struct{
-//     const char *name;
-//     int (*func)(void);
-// } command;
-
-// Array of built-in commands
-// command commands[] = {
-//     {"pwd", pwd},
-//     {"cd", cd},
-//     {"help", help}
-// };
-
 int main(){
     char input[1024];
-    bool status = true;
 
-    while (status){
+    while (1){
 
         printf("> ");
         fgets(input, 1024, stdin);
         char * line = strdup(input);
         char ** array = parse(line," \n");
 
-        if (array == NULL)
-            exit(1);
+        if (array == NULL || array[0] == NULL)
+            continue;
 
         int i = 0;
         while (array[i] != NULL){
-            // printf("%s\n",array[i]);
             int (*command_func)(void) = find_command(array[i++]);
 
-            if (command_func != NULL){
-                status = command_func();
-            }
-            // else
-            //     printf("Command not found: %s\n", array[i]);
-
-            // i++;
+            if (command_func != NULL)
+                command_func();
+            
         }
 
         free(line);
@@ -69,12 +50,14 @@ int pwd(void){
 }
 
 int cd(void){
-    printf("hello\n");
     return 0;
 }
 
 int help(void){
-    printf("hello\n");
+    printf("pwd: prints out current working directory\n");
+    printf("help: prints out built-in commands and their descriptions\n");
+    printf("cd: changes directory\n");
+    printf("exit: exits the shell\n");
     return 0;
 }
 
