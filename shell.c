@@ -3,41 +3,62 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <sys/wait.h>
+#include <sys/types.h>
 #include "helpers.h"
 
 int pwd(void);
 int cd(char *dir);
 int help(void);
-int (*find_command(char *name))(void);
+void execute_command(char** args);
+
+#define MAX_COMMANDS 10 
 
 int main(){
     char input[1024];
 
     while (1){
-
         printf("> ");
         fgets(input, 1024, stdin);
         char * line = strdup(input);
         char ** array = parse(line," \n");
 
-        if (array == NULL || array[0] == NULL)
+        if (array == NULL || array[0] == NULL){
+            free(line);
+            free(array);
             continue;
-
-        // First checking if 'cd' was entered in; else search through if the other commands were entered
-        if (strcmp(array[0], "cd") == 0) {
-            // Call the 'cd' function with the specified directory
-            cd(array[1]);
         }
-        else{
-            int i = 0;
-            while (array[i] != NULL){
-                int (*command_func)(void) = find_command(array[i++]);
 
-                if (command_func != NULL)
-                    command_func();
+        int i = 0;
+        char command[1024] = "";
+
+         while (array[i] != NULL){
+            if (strcmp(array[i], "exit") == 0) {
+                free(line);
+                free(array);
+                exit(0);
             }
-        }
+            else if (strcmp(array[i], "pwd") == 0)
+                pwd();
+            else if (strcmp(array[i], "cd") == 0){
+                cd(array[i+1]);
+                i++;
+            }
+            else if (strcmp(array[i], "help") == 0)
+                help();
+            else{
+                strcat(command, array[i]);
+                if (i < (MAX_COMMANDS - 1) && array[i+1] != NULL)
+                    strcat(command, " ");
+                else
+                    execute_command(parse(command," "));
+            }
 
+            // Resetting command buffer
+            command[0] = '\0';
+
+            i++;
+        }
         free(line);
         free(array);
     }
@@ -57,16 +78,16 @@ int pwd(void){
 
 int cd(char *dir){
     // If no directory was specified, change to the user's home directory
-    if (dir == NULL) {
+    if (dir == NULL){
         dir = getenv("HOME");
-        if (dir == NULL) {
+        if (dir == NULL){
             perror("cd: error: could not get home directory");
             return 1;
         }
     }
 
     // Change to the specified directory
-    if (chdir(dir) != 0) {
+    if (chdir(dir) != 0){
         perror("cd: error");
         return 1;
     }
@@ -82,14 +103,22 @@ int help(void){
     return 0;
 }
 
-// Find Command function that searches through the struct command array, and returns the pointer to it if found
-int (*find_command(char *name))(void) {
-    if (strcmp(name, "pwd") == 0)
-        return &pwd;
-    else if (strcmp(name, "help") == 0)
-        return &help;
-    else if (strcmp(name, "exit") == 0)
-        exit(0);
-    else
-        return NULL;
+void execute_command(char** args) {
+    pid_t pid;
+    int status;
+
+    pid = fork();
+    if (pid == 0) {
+        // child process
+        if (execv(args[0], args) == -1) {
+            perror("execute_command");
+            exit(EXIT_FAILURE);
+        }
+    } else if (pid < 0) {
+        // fork error
+        perror("execute_command");
+    } else {
+        // parent process
+        waitpid(pid, &status, WUNTRACED);
+    }
 }
