@@ -46,6 +46,10 @@ int main(){
             }
             else if (strcmp(array[i], "help") == 0)
                 help();
+            else if (strcmp(array[i], "echo") == 0 && strcmp(array[i+1], "$PATH") == 0){
+                printf("%s\n", getenv("PATH"));
+                i++;
+            }
             else{
                 strcat(command, array[i]);
                 if (i < (MAX_COMMANDS - 1) && array[i+1] != NULL)
@@ -101,73 +105,4 @@ int help(void){
     printf("cd [path]: changes directory; if no path is entered then you go to the root directory\n");
     printf("exit: exits the shell\n");
     return 0;
-}
-
-void execute_command(char** args){
-    // Check if the command includes a path
-    if (strchr(args[0], '/') != NULL){
-        // Execute command with full path
-        pid_t pid = fork();
-        if (pid == 0){
-            // Child process
-            if (execv(args[0], args) == -1){
-                perror("execute_command");
-                exit(EXIT_FAILURE);
-            }
-        } 
-        else if (pid < 0){
-            // Fork error
-            perror("execute_command");
-            exit(EXIT_FAILURE);
-        } 
-        else{
-            // Parent process
-            int status;
-            waitpid(pid, &status, 0);
-        }
-    } 
-    else{
-        // Search for command in directories specified in PATH
-        char* path = getenv("PATH");
-        if (path == NULL){
-            fprintf(stderr, "execute_command: error: PATH not set\n");
-            exit(EXIT_FAILURE);
-        }
-
-        // Parse PATH into individual directories
-        char* dir = strtok(path, ":");
-        while (dir != NULL){
-            // Build full path to command
-            char cmd_path[1024];
-            snprintf(cmd_path, sizeof(cmd_path), "%s/%s", dir, args[0]);
-
-            // Attempt to execute command
-            pid_t pid = fork();
-            if (pid == 0){
-                // Child process
-                if (execv(cmd_path, args) == -1) {
-                    exit(EXIT_FAILURE);
-                }
-            } 
-            else if (pid < 0){
-                // Fork error
-                perror("execute_command");
-                exit(EXIT_FAILURE);
-            } 
-            else{
-                // Parent process
-                int status;
-                waitpid(pid, &status, 0);
-                if (WIFEXITED(status) && WEXITSTATUS(status) == EXIT_SUCCESS)
-                    // Execution succeeded
-                    return;
-            }
-
-            // Command not found in this directory, move on to next directory
-            dir = strtok(NULL, ":");
-        }
-
-        // Command not found in any directory
-        fprintf(stderr, "execute_command: %s: command not found\n", args[0]);
-    }
 }
