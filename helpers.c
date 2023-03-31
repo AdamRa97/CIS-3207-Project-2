@@ -31,29 +31,28 @@ int handle_builtin_commands(char** args);
   @return argn : The length of the array
 */
 
-void safe_close(int fd) {
-    if (close(fd) == -1) {
+void safe_close(int fd){
+    if (close(fd) == -1)
         perror("safe_close");
-    }
 }
 
-char **parse(char *line, char *delim) {
+char **parse(char *line, char *delim){
     char **array = malloc(sizeof(char *));
     *array = NULL;
     int n = 0;
 
     char *buf = strtok(line, delim);
 
-    if (buf == NULL) {
+    if (buf == NULL){
         free(array);
         array = NULL;
         return array;
     }
 
-    while (buf != NULL) {
+    while (buf != NULL){
         char **temp = realloc(array, (n + 2) * sizeof(char *));
 
-        if (temp == NULL) {
+        if (temp == NULL){
             free(array);
             array = NULL;
             return array;
@@ -75,9 +74,8 @@ int find_special (char*args[], char * special){
 
 	int i = 0;
 	while(args[i]!=NULL){
-		if(strcmp(args[i],special)==0){
+		if(strcmp(args[i],special)==0)
 			return i;
-		}
 		i++;
 	}
 	return -1;
@@ -98,9 +96,8 @@ FILE *getInput(int argc, char* argv[]){
         }
     }
     //set the file stream to standard input otherwise
-    else if(argc ==1){
+    else if(argc ==1)
         mainFileStream = stdin;
-    }
     else{
         printf("Too many arguments\n");
         exit(1);
@@ -108,14 +105,12 @@ FILE *getInput(int argc, char* argv[]){
     return mainFileStream;
 }
 
-void execute_command(char** args) {
+void execute_command(char** args){
     if (args[0] == NULL)
         return;
 
-
     if (handle_builtin_commands(args))
         return;
-    
 
     int in_fd = -1;
     int out_fd = -1;
@@ -125,9 +120,9 @@ void execute_command(char** args) {
     int output_redirect_index = find_special(args, ">");
 
     // Handle input redirection
-    if (input_redirect_index != -1) {
+    if (input_redirect_index != -1){
         in_fd = open(args[input_redirect_index + 1], O_RDONLY);
-        if (in_fd == -1) {
+        if (in_fd == -1){
             perror("execute_command: open input file");
             exit(EXIT_FAILURE);
         }
@@ -136,15 +131,15 @@ void execute_command(char** args) {
 
     // Save the output file name before setting the element to NULL
     char *output_file = NULL;
-    if (output_redirect_index != -1) {
+    if (output_redirect_index != -1){
         output_file = args[output_redirect_index + 1];
         args[output_redirect_index] = NULL;
     }
 
     // Handle output redirection
-    if (output_file != NULL) {
+    if (output_file != NULL){
         out_fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (out_fd == -1) {
+        if (out_fd == -1){
             perror("execute_command: open output file");
             exit(EXIT_FAILURE);
         }
@@ -154,25 +149,25 @@ void execute_command(char** args) {
 
     // Search for command in directories specified in PATH
     cmd_path = resolve_command_path(args[0]);
-    if (cmd_path == NULL) {
+    if (cmd_path == NULL){
         fprintf(stderr, "execute_command: %s: command not found\n", args[0]);
         return;
     }
 
     pid_t pid = fork();
 
-    if (pid == 0) {
+    if (pid == 0){
         // Child process
-        if (in_fd != -1) {
-            if (dup2(in_fd, STDIN_FILENO) == -1) {
+        if (in_fd != -1){
+            if (dup2(in_fd, STDIN_FILENO) == -1){
                 perror("execute_command: dup2 input");
                 exit(EXIT_FAILURE);
             }
             safe_close(in_fd);
         }
 
-        if (out_fd != -1) {
-            if (dup2(out_fd, STDOUT_FILENO) == -1) {
+        if (out_fd != -1){
+            if (dup2(out_fd, STDOUT_FILENO) == -1){
                 perror("execute_command: dup2 output");
                 exit(EXIT_FAILURE);
             }
@@ -207,7 +202,8 @@ void execute_command(char** args) {
 
 char *resolve_command_path(const char *cmd){
     char *env_path = getenv("PATH");
-    if (env_path == NULL) {
+
+    if (env_path == NULL){
         fprintf(stderr, "resolve_command_path: error: PATH not set\n");
         return NULL;
     }
@@ -216,11 +212,11 @@ char *resolve_command_path(const char *cmd){
     char *path = strdup(env_path);
     char *dir = strtok(path, ":");
 
-    while (dir != NULL) {
+    while (dir != NULL){
         char cmd_path[1024];
         snprintf(cmd_path, sizeof(cmd_path), "%s/%s", dir, cmd);
 
-        if (access(cmd_path, X_OK) == 0) {
+        if (access(cmd_path, X_OK) == 0){
             // Command found in this directory
             char *resolved_path = strdup(cmd_path);
             free(path);
@@ -234,10 +230,11 @@ char *resolve_command_path(const char *cmd){
     return NULL;
 }
 
-int handle_builtin_commands(char **args) {
-    if (strcmp(args[0], "exit") == 0) {
+int handle_builtin_commands(char **args){
+    if (strcmp(args[0], "exit") == 0){
         exit(EXIT_SUCCESS);
-    } else if (strcmp(args[0], "help") == 0) {
+    }
+    else if (strcmp(args[0], "help") == 0){
         printf("Type the name of a command followed by arguments and press enter.\n");
         printf("Built-in commands:\n");
         printf("  exit - exit the shell\n");
@@ -245,23 +242,39 @@ int handle_builtin_commands(char **args) {
         printf("  cd - change directory\n");
         printf("  pwd - print working directory\n");
         return 1;
-    } else if (strcmp(args[0], "cd") == 0) {
-        if (args[1] == NULL) {
+    }
+    else if (strcmp(args[0], "cd") == 0){
+        if (args[1] == NULL){
             fprintf(stderr, "cd: expected argument\n");
-        } else {
-            if (chdir(args[1]) != 0) {
+        }
+        else{
+            if (chdir(args[1]) != 0)
                 perror("cd");
-            }
         }
         return 1;
-    } else if (strcmp(args[0], "pwd") == 0) {
+    } 
+    else if (strcmp(args[0], "pwd") == 0){
         char cwd[PATH_MAX];
-        if (getcwd(cwd, sizeof(cwd)) != NULL) {
+
+        if (getcwd(cwd, sizeof(cwd)) != NULL)
             printf("%s\n", cwd);
-        } else {
+        else
             perror("pwd");
-        }
+        
         return 1;
+    }
+    else if (strcmp(args[0], "echo") == 0){
+        // Add this block of code
+        if (args[1] != NULL && args[1][0] == '$'){
+            // Remove the $ sign from the variable name
+            char *env_var = args[1] + 1;
+            char *env_value = getenv(env_var);
+            if (env_value)
+                printf("%s\n", env_value);
+            else
+                printf("\n");
+            return 1;
+        }
     }
     return 0;
 }
