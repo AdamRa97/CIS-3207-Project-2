@@ -5,6 +5,13 @@
 #include <stdbool.h>
 #include <sys/wait.h>
 #include <sys/types.h>
+#include <fcntl.h>
+
+void safe_close(int fd);
+char *resolve_command_path(const char *cmd);
+int handle_builtin_commands(char** args);
+
+#define PATH_MAX 4096
 
 /*
   Function to break up a line (or any arbitrary string) into a memory allocated
@@ -24,39 +31,43 @@
   @return argn : The length of the array
 */
 
-char ** parse(char*line,char*delim){
+void safe_close(int fd) {
+    if (close(fd) == -1) {
+        perror("safe_close");
+    }
+}
 
-	char**array=malloc(sizeof(char*));
-	*array=NULL;
-	int n = 0;
+char **parse(char *line, char *delim) {
+    char **array = malloc(sizeof(char *));
+    *array = NULL;
+    int n = 0;
 
-	char*buf = strtok(line,delim);
+    char *buf = strtok(line, delim);
 
-	if (buf == NULL){
-		free(array);
-		array=NULL;
-		return array;
-	}
+    if (buf == NULL) {
+        free(array);
+        array = NULL;
+        return array;
+    }
 
-	while(buf!=NULL ){
+    while (buf != NULL) {
+        char **temp = realloc(array, (n + 2) * sizeof(char *));
 
-		char**temp = realloc(array,(n+2)*sizeof(char*));
+        if (temp == NULL) {
+            free(array);
+            array = NULL;
+            return array;
+        }
 
-		if(temp==NULL){
-			free(array);
-			array=NULL;
-			return array;
-		}
+        array = temp;
+        temp[n] = strdup(buf);  // Create a new string for the token
+        temp[n + 1] = NULL;
+        n++;
 
-		array=temp;
-		temp[n++]=buf;
-		temp[n]=NULL;
+        buf = strtok(NULL, delim);
+    }
 
-		buf = strtok(NULL,delim);
-
-	}
-
-	return array;
+    return array;
 }
 
 /*Returns index of first instance of char * special*/
@@ -97,93 +108,160 @@ FILE *getInput(int argc, char* argv[]){
     return mainFileStream;
 }
 
-void execute_command(char** args){
-    // Check if the command includes a path
-    if (strchr(args[0], '/') != NULL){
-        // Execute command with full path
-        pid_t pid = fork();
-        if (pid == 0){
-            // Child process
-            if (execv(args[0], args) == -1){
-                perror("execute_command");
-                exit(EXIT_FAILURE);
-            }
-        } 
-        else if (pid < 0){
-            // Fork error
-            perror("execute_command");
+void execute_command(char** args) {
+    if (args[0] == NULL)
+        return;
+
+
+    if (handle_builtin_commands(args))
+        return;
+    
+
+    int in_fd = -1;
+    int out_fd = -1;
+
+    // Find input/output redirection operators
+    int input_redirect_index = find_special(args, "<");
+    int output_redirect_index = find_special(args, ">");
+
+    // Handle input redirection
+    if (input_redirect_index != -1) {
+        in_fd = open(args[input_redirect_index + 1], O_RDONLY);
+        if (in_fd == -1) {
+            perror("execute_command: open input file");
             exit(EXIT_FAILURE);
-        } 
-        else{
-            // Parent process
-            int status;
-            waitpid(pid, &status, 0);
         }
-    } 
-    else{
-        // Search for command in directories specified in PATH
-        char* env_path = getenv("PATH");
-        if (env_path == NULL)
-            fprintf(stderr, "execute_command: error: PATH not set\n");
-        
-        // Duplicate the PATH environment variable
-        char* path = strdup(env_path);
-
-        // Parse PATH into individual directories
-        char* dir = strtok(path, ":");
-        while (dir != NULL){
-            // Build full path to command
-            char cmd_path[1024];
-            snprintf(cmd_path, sizeof(cmd_path), "%s/%s", dir, args[0]);
-
-            // Attempt to execute command
-            pid_t pid = fork();
-            if (pid == 0){
-                // Child process
-                if (execv(cmd_path, args) == -1) {
-                    exit(EXIT_FAILURE);
-                }
-            } 
-            else if (pid < 0){
-                // Fork error
-                perror("execute_command");
-                exit(EXIT_FAILURE);
-            } 
-            else{
-                // Parent process
-                int status;
-                waitpid(pid, &status, 0);
-                if (WIFEXITED(status) && WEXITSTATUS(status) == EXIT_SUCCESS)
-                    // Execution succeeded
-                    return;
-            }
-
-            // Command not found in this directory, move on to next directory
-            dir = strtok(NULL, ":");
-        }
-
-        // Command not found in any directory
-        fprintf(stderr, "execute_command: %s: command not found\n", args[0]);
+        args[input_redirect_index] = NULL;
     }
+
+    // Save the output file name before setting the element to NULL
+    char *output_file = NULL;
+    if (output_redirect_index != -1) {
+        output_file = args[output_redirect_index + 1];
+        args[output_redirect_index] = NULL;
+    }
+
+    // Handle output redirection
+    if (output_file != NULL) {
+        out_fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (out_fd == -1) {
+            perror("execute_command: open output file");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    char *cmd_path = NULL;
+
+    // Search for command in directories specified in PATH
+    cmd_path = resolve_command_path(args[0]);
+    if (cmd_path == NULL) {
+        fprintf(stderr, "execute_command: %s: command not found\n", args[0]);
+        return;
+    }
+
+    pid_t pid = fork();
+
+    if (pid == 0) {
+        // Child process
+        if (in_fd != -1) {
+            if (dup2(in_fd, STDIN_FILENO) == -1) {
+                perror("execute_command: dup2 input");
+                exit(EXIT_FAILURE);
+            }
+            safe_close(in_fd);
+        }
+
+        if (out_fd != -1) {
+            if (dup2(out_fd, STDOUT_FILENO) == -1) {
+                perror("execute_command: dup2 output");
+                exit(EXIT_FAILURE);
+            }
+            safe_close(out_fd);
+        }
+
+        if (execv(cmd_path, args) == -1)
+            exit(EXIT_FAILURE);
+    }
+    else if (pid < 0){
+        // Fork error
+        perror("execute_command");
+        exit(EXIT_FAILURE);
+    }
+    else{
+        // Parent process
+        int status;
+        waitpid(pid, &status, 0);
+
+        // Close file descriptors after executing the command
+        if (in_fd != -1)
+            safe_close(in_fd);
+
+        if (out_fd != -1)
+            safe_close(out_fd);
+    }
+
+    // Free the allocated memory for cmd_path
+    free(cmd_path);
 }
 
-/*
-  Demonstration main()
-*/
-// int main(){
 
-// 	char _line[1000] = "a line of text\n";
-// 	char * line = strdup(_line);
-// 	char ** array = parse(line," \n");
+char *resolve_command_path(const char *cmd){
+    char *env_path = getenv("PATH");
+    if (env_path == NULL) {
+        fprintf(stderr, "resolve_command_path: error: PATH not set\n");
+        return NULL;
+    }
 
-// 	if (array==NULL)
-// 		exit(1);
+    // Duplicate the PATH environment variable
+    char *path = strdup(env_path);
+    char *dir = strtok(path, ":");
 
-// 	int i = 0;
-// 	while (array[i]!=NULL)
-// 		printf("%s\n",array[i++]);
+    while (dir != NULL) {
+        char cmd_path[1024];
+        snprintf(cmd_path, sizeof(cmd_path), "%s/%s", dir, cmd);
 
-// 	free(array);
-// 	free(line);
+        if (access(cmd_path, X_OK) == 0) {
+            // Command found in this directory
+            char *resolved_path = strdup(cmd_path);
+            free(path);
+            return resolved_path;
+        }
 
-// }
+        dir = strtok(NULL, ":");
+    }
+
+    free(path);
+    return NULL;
+}
+
+int handle_builtin_commands(char **args) {
+    if (strcmp(args[0], "exit") == 0) {
+        exit(EXIT_SUCCESS);
+    } else if (strcmp(args[0], "help") == 0) {
+        printf("Type the name of a command followed by arguments and press enter.\n");
+        printf("Built-in commands:\n");
+        printf("  exit - exit the shell\n");
+        printf("  help - display this help message\n");
+        printf("  cd - change directory\n");
+        printf("  pwd - print working directory\n");
+        return 1;
+    } else if (strcmp(args[0], "cd") == 0) {
+        if (args[1] == NULL) {
+            fprintf(stderr, "cd: expected argument\n");
+        } else {
+            if (chdir(args[1]) != 0) {
+                perror("cd");
+            }
+        }
+        return 1;
+    } else if (strcmp(args[0], "pwd") == 0) {
+        char cwd[PATH_MAX];
+        if (getcwd(cwd, sizeof(cwd)) != NULL) {
+            printf("%s\n", cwd);
+        } else {
+            perror("pwd");
+        }
+        return 1;
+    }
+    return 0;
+}

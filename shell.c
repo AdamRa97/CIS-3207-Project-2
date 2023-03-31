@@ -10,64 +10,47 @@
 int pwd(void);
 int cd(char *dir);
 int help(void);
-void execute_command(char** args);
+int parse_line(char *line, char **args);
 
-#define MAX_COMMANDS 10 
+#define MAX_LINE_LENGTH 1024
 
-int main(){
-    char input[1024];
+int main() {
+    char line[MAX_LINE_LENGTH];
+    char *args[MAX_LINE_LENGTH / 2 + 1];
 
-    while (1){
+    while (1) {
         printf("> ");
-        fgets(input, 1024, stdin);
-        char * line = strdup(input);
-        char ** array = parse(line," \n");
+        if (fgets(line, MAX_LINE_LENGTH, stdin) == NULL) {
+            printf("\n");
+            exit(EXIT_SUCCESS);
+        }
 
-        if (array == NULL || array[0] == NULL){
-            free(line);
-            free(array);
+        int num_args = parse_line(line, args);
+
+        // Remove newline character from the last argument if present
+        int last_arg_index = 0;
+        while (args[last_arg_index] != NULL) {
+            last_arg_index++;
+        }
+        if (last_arg_index > 0) {
+            char *last_arg = args[last_arg_index - 1];
+            int last_arg_length = strlen(last_arg);
+            if (last_arg[last_arg_length - 1] == '\n') {
+                last_arg[last_arg_length - 1] = '\0';
+            }
+        }
+
+        if (num_args == -1) {
+            fprintf(stderr, "Error: too many arguments\n");
             continue;
         }
 
-        int i = 0;
-        char command[1024] = "";
-
-         while (array[i] != NULL){
-            if (strcmp(array[i], "exit") == 0) {
-                free(line);
-                free(array);
-                exit(0);
-            }
-            else if (strcmp(array[i], "pwd") == 0)
-                pwd();
-            else if (strcmp(array[i], "cd") == 0){
-                cd(array[i+1]);
-                i++;
-            }
-            else if (strcmp(array[i], "help") == 0)
-                help();
-            else if (strcmp(array[i], "echo") == 0 && strcmp(array[i+1], "$PATH") == 0){
-                printf("%s\n", getenv("PATH"));
-                i++;
-            }
-            else{
-                strcat(command, array[i]);
-                if (i < (MAX_COMMANDS - 1) && array[i+1] != NULL)
-                    strcat(command, " ");
-                else
-                    execute_command(parse(command," "));
-            }
-
-            // Resetting command buffer
-            command[0] = '\0';
-
-            i++;
-        }
-        free(line);
-        free(array);
+        execute_command(args);
     }
+
     return 0;
 }
+
 
 int pwd(void){
     char cwd[1024];
@@ -105,4 +88,23 @@ int help(void){
     printf("cd [path]: changes directory; if no path is entered then you go to the root directory\n");
     printf("exit: exits the shell\n");
     return 0;
+}
+
+int parse_line(char *line, char **args) {
+    int num_args = 0;
+    char *token = strtok(line, " \t");
+
+    while (token != NULL) {
+        args[num_args] = token;
+        num_args++;
+
+        if (num_args >= MAX_LINE_LENGTH / 2) {
+            return -1;
+        }
+
+        token = strtok(NULL, " \t");
+    }
+
+    args[num_args] = NULL;
+    return num_args;
 }
