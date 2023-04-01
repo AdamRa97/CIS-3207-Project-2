@@ -7,9 +7,6 @@
 #include <sys/types.h>
 #include "helpers.h"
 
-int pwd(void);
-int cd(char *dir);
-int help(void);
 int parse_line(char *line, char **args);
 
 #define MAX_LINE_LENGTH 1024
@@ -49,45 +46,6 @@ int main(){
         execute_command(args);
     }
 
-    return 0;
-}
-
-
-int pwd(void){
-    char cwd[1024];
-    if (getcwd(cwd,sizeof(cwd)) != NULL)
-        printf("%s\n",cwd);
-    else{
-        perror("getcwd() error");
-        return 1;
-    }
-    return 0;
-}
-
-int cd(char *dir){
-    // If no directory was specified, change to the user's home directory
-    if (dir == NULL){
-        dir = getenv("HOME");
-        if (dir == NULL){
-            fprintf(stderr,"cd: error: could not get home directory");
-            return 1;
-        }
-    }
-
-    // Change to the specified directory
-    if (chdir(dir) != 0){
-        perror("cd: error");
-        return 1;
-    }
-
-    return 0;
-}
-
-int help(void){
-    printf("pwd: prints out current working directory\n");
-    printf("help: prints out built-in commands and their descriptions\n");
-    printf("cd [path]: changes directory; if no path is entered then you go to the root directory\n");
-    printf("exit: exits the shell\n");
     return 0;
 }
 
