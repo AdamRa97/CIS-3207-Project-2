@@ -34,7 +34,7 @@ void execute_single_command(char **args, int in_fd, int out_fd, bool wait_for_co
 */
 
 void safe_close(int fd){
-    if (close(fd) == -1) {
+    if (close(fd) == -1){
         fprintf(stderr, "Error: safe_close failed for fd %d\n", fd);
         perror("safe_close");
     }
@@ -243,6 +243,14 @@ int handle_builtin_commands(char **args){
             return 1;
         }
     }
+    else if (strcmp(args[0], "wait") == 0){
+        int status;
+        pid_t pid;
+
+        while ((pid = wait(&status)) > 0);
+
+        return 1;
+    }
     return 0;
 }
 
@@ -301,6 +309,17 @@ void execute_single_command(char **args, int in_fd, int out_fd, bool wait_for_co
     if (handle_builtin_commands(args))
         return;
 
+    // Check if the command should be run in the background
+    bool run_in_background = false;
+    int num_args = 0;
+    while (args[num_args] != NULL){
+        num_args++;
+    }
+    if (num_args > 0 && strcmp(args[num_args-1], "&") == 0){
+        run_in_background = true;
+        args[num_args-1] = NULL;
+    }
+
     char *cmd_path = resolve_command_path(args[0]);
     if (cmd_path == NULL){
         fprintf(stderr, "execute_single_command: %s: command not found\n", args[0]);
@@ -327,10 +346,12 @@ void execute_single_command(char **args, int in_fd, int out_fd, bool wait_for_co
             safe_close(out_fd);
         }
 
+        
         if (execv(cmd_path, args) == -1){
             perror("execute_single_command");
             exit(EXIT_FAILURE);
         }
+        
     } 
     else if (pid < 0){
         // Fork error
@@ -339,7 +360,7 @@ void execute_single_command(char **args, int in_fd, int out_fd, bool wait_for_co
     } 
     else{
         // Parent process
-        if (wait_for_completion){
+        if (!run_in_background && wait_for_completion){
             int status;
             waitpid(pid, &status, 0);
         }
