@@ -117,15 +117,14 @@ void execute_command(char** args){
         return;
 
     int num_pipes = 0;
-    for (int i = 0; args[i] != NULL; ++i) {
-        if (strcmp(args[i], "|") == 0) {
+    for (int i = 0; args[i] != NULL; ++i){
+        if (strcmp(args[i], "|") == 0)
             num_pipes++;
-        }
     }
 
-    if (num_pipes > 0) {
+    if (num_pipes > 0)
         execute_piped_commands(args);
-    } else {
+    else{
         int in_fd = -1;
         int out_fd = -1;
 
@@ -202,9 +201,8 @@ char *resolve_command_path(const char *cmd){
 }
 
 int handle_builtin_commands(char **args){
-    if (strcmp(args[0], "exit") == 0){
+    if (strcmp(args[0], "exit") == 0)
         exit(EXIT_SUCCESS);
-    }
     else if (strcmp(args[0], "help") == 0){
         printf("Type the name of a command followed by arguments and press enter.\n");
         printf("Built-in commands:\n");
@@ -215,9 +213,8 @@ int handle_builtin_commands(char **args){
         return 1;
     }
     else if (strcmp(args[0], "cd") == 0){
-        if (args[1] == NULL){
+        if (args[1] == NULL)
             fprintf(stderr, "cd: expected argument\n");
-        }
         else{
             if (chdir(args[1]) != 0)
                 perror("cd");
@@ -235,7 +232,6 @@ int handle_builtin_commands(char **args){
         return 1;
     }
     else if (strcmp(args[0], "echo") == 0){
-        // Add this block of code
         if (args[1] != NULL && args[1][0] == '$'){
             // Remove the $ sign from the variable name
             char *env_var = args[1] + 1;
@@ -250,12 +246,11 @@ int handle_builtin_commands(char **args){
     return 0;
 }
 
-void execute_piped_commands(char **args) {
+void execute_piped_commands(char **args){
     int pipe_count = 0;
-    for (int i = 0; args[i] != NULL; ++i) {
-        if (strcmp(args[i], "|") == 0) {
+    for (int i = 0; args[i] != NULL; ++i){
+        if (strcmp(args[i], "|") == 0)
             pipe_count++;
-        }
     }
 
     int num_cmds = pipe_count + 1;
@@ -263,34 +258,32 @@ void execute_piped_commands(char **args) {
 
     int cmd_index = 0;
     cmds[cmd_index++] = args;
-    for (int i = 0; args[i] != NULL; ++i) {
-        if (strcmp(args[i], "|") == 0) {
+    for (int i = 0; args[i] != NULL; ++i){
+        if (strcmp(args[i], "|") == 0){
             args[i] = NULL;
             cmds[cmd_index++] = args + i + 1;
         }
     }
 
     int *pipes = malloc(2 * pipe_count * sizeof(int));
-    for (int i = 0; i < pipe_count; ++i) {
-        if (pipe(pipes + 2 * i) == -1) {
+    for (int i = 0; i < pipe_count; ++i){
+        if (pipe(pipes + 2 * i) == -1){
             perror("pipe");
             exit(EXIT_FAILURE);
         }
     }
 
-    for (int i = 0; i < num_cmds; ++i) {
+    for (int i = 0; i < num_cmds; ++i){
         int in_fd = (i == 0) ? -1 : pipes[2 * (i - 1)];
         int out_fd = (i == num_cmds - 1) ? -1 : pipes[2 * i + 1];
 
         execute_single_command(cmds[i], in_fd, out_fd, (i == num_cmds - 1));
 
         // Close file descriptors after executing the command
-        if (in_fd != -1) {
+        if (in_fd != -1)
             safe_close(in_fd);
-        }
-        if (out_fd != -1) {
+        if (out_fd != -1)
             safe_close(out_fd);
-        }
 
         // Wait for the child process to complete
         int status;
@@ -301,7 +294,7 @@ void execute_piped_commands(char **args) {
     free(pipes);
 }
 
-void execute_single_command(char **args, int in_fd, int out_fd, bool wait_for_completion) {
+void execute_single_command(char **args, int in_fd, int out_fd, bool wait_for_completion){
     if (args[0] == NULL)
         return;
 
@@ -309,42 +302,44 @@ void execute_single_command(char **args, int in_fd, int out_fd, bool wait_for_co
         return;
 
     char *cmd_path = resolve_command_path(args[0]);
-    if (cmd_path == NULL) {
+    if (cmd_path == NULL){
         fprintf(stderr, "execute_single_command: %s: command not found\n", args[0]);
         return;
     }
 
     pid_t pid = fork();
 
-    if (pid == 0) {
+    if (pid == 0){
         // Child process
-        if (in_fd != -1) {
-            if (dup2(in_fd, STDIN_FILENO) == -1) {
+        if (in_fd != -1){
+            if (dup2(in_fd, STDIN_FILENO) == -1){
                 perror("execute_single_command: dup2 input");
                 exit(EXIT_FAILURE);
             }
             safe_close(in_fd);
         }
 
-        if (out_fd != -1) {
-            if (dup2(out_fd, STDOUT_FILENO) == -1) {
+        if (out_fd != -1){
+            if (dup2(out_fd, STDOUT_FILENO) == -1){
                 perror("execute_single_command: dup2 output");
                 exit(EXIT_FAILURE);
             }
             safe_close(out_fd);
         }
 
-        if (execv(cmd_path, args) == -1) {
+        if (execv(cmd_path, args) == -1){
             perror("execute_single_command");
             exit(EXIT_FAILURE);
         }
-    } else if (pid < 0) {
+    } 
+    else if (pid < 0){
         // Fork error
         perror("execute_single_command");
         exit(EXIT_FAILURE);
-    } else {
+    } 
+    else{
         // Parent process
-        if (wait_for_completion) {
+        if (wait_for_completion){
             int status;
             waitpid(pid, &status, 0);
         }
