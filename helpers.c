@@ -312,9 +312,8 @@ void execute_single_command(char **args, int in_fd, int out_fd, bool wait_for_co
     // Check if the command should be run in the background
     bool run_in_background = false;
     int num_args = 0;
-    while (args[num_args] != NULL){
+    while (args[num_args] != NULL)
         num_args++;
-    }
     if (num_args > 0 && strcmp(args[num_args-1], "&") == 0){
         run_in_background = true;
         args[num_args-1] = NULL;
