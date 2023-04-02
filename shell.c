@@ -51,7 +51,7 @@ int main(){
 
 int parse_line(char *line, char **args){
     int num_args = 0;
-    char *token = strtok(line, " \t&");
+    char *token = strtok(line, " \t");
 
     while (token != NULL){
         args[num_args] = token;
@@ -60,7 +60,7 @@ int parse_line(char *line, char **args){
         if (num_args >= MAX_LINE_LENGTH / 2)
             return -1;
 
-        token = strtok(NULL, " \t&");
+        token = strtok(NULL, " \t");
     }
 
     args[num_args] = NULL;
