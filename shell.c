@@ -45,7 +45,6 @@ int main(){
             fprintf(stderr, "Error: too many arguments\n");
             continue;
         }
-
         execute_command(args);
     }
 
@@ -65,7 +64,6 @@ int parse_line(char *line, char **args){
 
         token = strtok(NULL, " \t");
     }
-
     args[num_args] = NULL;
     return num_args;
 }

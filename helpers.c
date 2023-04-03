@@ -12,7 +12,7 @@ void safe_close(int fd);
 char *resolve_command_path(const char *cmd);
 int handle_builtin_commands(char** args);
 void execute_piped_commands(char **args);
-void execute_single_command(char **args, int in_fd, int out_fd, bool wait_for_completion);
+pid_t execute_single_command(char **args, int in_fd, int out_fd, bool wait_for_completion);
 
 #define PATH_MAX 4096
 
@@ -70,13 +70,11 @@ char **parse(char *line, char *delim){
 
         buf = strtok(NULL, delim);
     }
-
     return array;
 }
 
 /*Returns index of first instance of char * special*/
 int find_special (char*args[], char * special){
-
 	int i = 0;
 	while(args[i]!=NULL){
 		if(strcmp(args[i],special)==0)
@@ -193,10 +191,8 @@ char *resolve_command_path(const char *cmd){
             free(path);
             return resolved_path;
         }
-
         dir = strtok(NULL, ":");
     }
-
     free(path);
     return NULL;
 }
@@ -229,7 +225,6 @@ int handle_builtin_commands(char **args){
             printf("%s\n", cwd);
         else
             perror("pwd");
-        
         return 1;
     }
     else if (strcmp(args[0], "echo") == 0){
@@ -282,33 +277,39 @@ void execute_piped_commands(char **args){
         }
     }
 
+    // Check if the command should be run in the background
+    bool run_in_background = false;
+    int num_args = 0;
+    while (args[num_args] != NULL)
+        num_args++;
+    if (num_args > 0 && strcmp(args[num_args - 1], "&") == 0){
+        run_in_background = true;
+        args[num_args - 1] = NULL;
+    }
+
     for (int i = 0; i < num_cmds; ++i){
         int in_fd = (i == 0) ? -1 : pipes[2 * (i - 1)];
         int out_fd = (i == num_cmds - 1) ? -1 : pipes[2 * i + 1];
 
-        execute_single_command(cmds[i], in_fd, out_fd, (i == num_cmds - 1));
+        bool wait_for_completion = ((i == num_cmds - 1) && !run_in_background);
+        execute_single_command(cmds[i], in_fd, out_fd, wait_for_completion);
 
         // Close file descriptors after executing the command
         if (in_fd != -1)
             safe_close(in_fd);
         if (out_fd != -1)
             safe_close(out_fd);
-
-        // Wait for the child process to complete
-        int status;
-        wait(&status);
     }
-
     free(cmds);
     free(pipes);
 }
 
-void execute_single_command(char **args, int in_fd, int out_fd, bool wait_for_completion){
+pid_t execute_single_command(char **args, int in_fd, int out_fd, bool wait_for_completion){
     if (args[0] == NULL)
-        return;
+        return -1;
 
     if (handle_builtin_commands(args))
-        return;
+        return -1;
 
     // Check if the command should be run in the background
     bool run_in_background = false;
@@ -323,7 +324,7 @@ void execute_single_command(char **args, int in_fd, int out_fd, bool wait_for_co
     char *cmd_path = resolve_command_path(args[0]);
     if (cmd_path == NULL){
         fprintf(stderr, "execute_single_command: %s: command not found\n", args[0]);
-        return;
+        return -1;
     }
 
     pid_t pid = fork();
@@ -346,12 +347,10 @@ void execute_single_command(char **args, int in_fd, int out_fd, bool wait_for_co
             safe_close(out_fd);
         }
 
-        
         if (execv(cmd_path, args) == -1){
             perror("execute_single_command");
             exit(EXIT_FAILURE);
         }
-        
     } 
     else if (pid < 0){
         // Fork error
@@ -365,9 +364,9 @@ void execute_single_command(char **args, int in_fd, int out_fd, bool wait_for_co
             waitpid(pid, &status, 0);
         }
     }
-
     // Free the allocated memory for cmd_path
     free(cmd_path);
+    return pid;
 }
 
 void sigchld_handler(int sig){
