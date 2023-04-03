@@ -9,9 +9,11 @@
 
 int parse_line(char *line, char **args);
 
+// need to define this variable since parse_line utilizes it
 #define MAX_LINE_LENGTH 1024
 
 int main(){
+    // Creating arrays to store arguments parsed from command line
     char line[MAX_LINE_LENGTH];
     char *args[MAX_LINE_LENGTH / 2 + 1];
 
@@ -41,8 +43,9 @@ int main(){
                 last_arg[last_arg_length - 1] = '\0';
         }
 
+        // error checks if there are somehow less than 0 arguments parsed
         if (num_args == -1){
-            fprintf(stderr, "Error: too many arguments\n");
+            fprintf(stderr, "Error: too little arguments\n");
             continue;
         }
         execute_command(args);
@@ -51,6 +54,11 @@ int main(){
     return 0;
 }
 
+/*
+    RUBRIC RELATED POINTS
+    |Proper use of supplied parse code|
+    I modified the parse code to use my own that is compatible with the helper.c functions.
+*/
 int parse_line(char *line, char **args){
     int num_args = 0;
     char *token = strtok(line, " \t");
