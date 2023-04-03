@@ -6,6 +6,7 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include <signal.h>
 
 void safe_close(int fd);
 char *resolve_command_path(const char *cmd);
@@ -367,4 +368,9 @@ void execute_single_command(char **args, int in_fd, int out_fd, bool wait_for_co
 
     // Free the allocated memory for cmd_path
     free(cmd_path);
+}
+
+void sigchld_handler(int sig){
+    int status;
+    while (waitpid(-1, &status, WNOHANG) > 0);
 }

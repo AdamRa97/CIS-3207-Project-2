@@ -15,6 +15,9 @@ int main(){
     char line[MAX_LINE_LENGTH];
     char *args[MAX_LINE_LENGTH / 2 + 1];
 
+    // Register the signal handler for SIGCHLD
+    signal(SIGCHLD, sigchld_handler);
+
     while (1){
         printf("> ");
         if (fgets(line, MAX_LINE_LENGTH, stdin) == NULL){
