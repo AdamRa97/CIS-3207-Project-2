@@ -41,38 +41,6 @@ void safe_close(int fd){
     }
 }
 
-char **parse(char *line, char *delim){
-    char **array = malloc(sizeof(char *));
-    *array = NULL;
-    int n = 0;
-
-    char *buf = strtok(line, delim);
-
-    if (buf == NULL){
-        free(array);
-        array = NULL;
-        return array;
-    }
-
-    while (buf != NULL){
-        char **temp = realloc(array, (n + 2) * sizeof(char *));
-
-        if (temp == NULL){
-            free(array);
-            array = NULL;
-            return array;
-        }
-
-        array = temp;
-        temp[n] = strdup(buf);  // Create a new string for the token
-        temp[n + 1] = NULL;
-        n++;
-
-        buf = strtok(NULL, delim);
-    }
-    return array;
-}
-
 /*Returns index of first instance of char * special*/
 int find_special (char*args[], char * special){
 	int i = 0;
