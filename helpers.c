@@ -16,24 +16,7 @@ pid_t execute_single_command(char **args, int in_fd, int out_fd, bool wait_for_c
 
 #define PATH_MAX 4096
 
-/*
-  Function to break up a line (or any arbitrary string) into a memory allocated
-  tokenized array of strings separated by the given delimiter or set of 
-  delimiters (see strtok_r for more information about delim parameter). 
-  
-  Note: The array as well as the individual strings will be memory allocated,
-  therefore they must be freed later. 
-  
-  Warning: LINE MUST BE MEMORY ALLOCATED!
-
-  @param line : An arbitrary string
-  @param args : An empty array to place the tokenized output
-  @param delim : The delimiter or set of delimiters for separating 
-    the line (see strtok_r for more information)
-  
-  @return argn : The length of the array
-*/
-
+// to properly / safely close out file descriptors
 void safe_close(int fd){
     if (close(fd) == -1){
         fprintf(stderr, "Error: safe_close failed for fd %d\n", fd);
@@ -52,37 +35,20 @@ int find_special (char*args[], char * special){
 	return -1;
 }
 
-/*
- * Returns an input stream to be used depending on if the shell is launched in interactive / batch mode
- * Best used with getline https://man7.org/linux/man-pages/man3/getline.3.html
- */
-FILE *getInput(int argc, char* argv[]){
-    //if the argument count is 2, attempt to open the file passed to the shell
-    FILE *mainFileStream = NULL;
-    if(argc == 2){
-        mainFileStream = fopen(argv[1], "r");
-        if(mainFileStream == NULL){
-            printf("Error opening batch file\n");
-            exit(1);
-        }
-    }
-    //set the file stream to standard input otherwise
-    else if(argc ==1)
-        mainFileStream = stdin;
-    else{
-        printf("Too many arguments\n");
-        exit(1);
-    }
-    return mainFileStream;
-}
-
+/* 
+    To execute through commands and calls in 'execute_single_command' or 'execute_piped_commands'
+    depending whether there are '|'.
+*/
 void execute_command(char** args){
+    // Checks if there is anything to even execute
     if (args[0] == NULL)
         return;
-
+    
+    // Checks if any of the built-in commands were typed in
     if (handle_builtin_commands(args))
         return;
 
+    // Checking if pipes were given in command line
     int num_pipes = 0;
     for (int i = 0; args[i] != NULL; ++i){
         if (strcmp(args[i], "|") == 0)
@@ -136,19 +102,27 @@ void execute_command(char** args){
     }
 }
 
-
+/*
+    RUBRIC RELATED POINTS
+    |Program execution from the shell with full program path|
+    This function implements my own PATH since we aren't allowed to use execvp
+    and need to use our own PATH resolution
+*/
 char *resolve_command_path(const char *cmd){
     char *env_path = getenv("PATH");
 
+    // Error checking
     if (env_path == NULL){
         fprintf(stderr, "resolve_command_path: error: PATH not set\n");
         return NULL;
     }
 
-    // Duplicate the PATH environment variable
+    // Duplicate the PATH environment variable to store old PATH
     char *path = strdup(env_path);
+    // Tokenizing each directory
     char *dir = strtok(path, ":");
 
+    // Concatenating the strings together to create the full PATH
     while (dir != NULL){
         char cmd_path[1024];
         snprintf(cmd_path, sizeof(cmd_path), "%s/%s", dir, cmd);
@@ -165,9 +139,19 @@ char *resolve_command_path(const char *cmd){
     return NULL;
 }
 
+/*
+    RUBRIC RELATED POINTS
+    |Built in Commands for help, exit, pwd, cd, and wait|
+*/
 int handle_builtin_commands(char **args){
+    // Exit built-in command
     if (strcmp(args[0], "exit") == 0)
         exit(EXIT_SUCCESS);
+    /*
+        Help built in command, decided to just hard code in the msgs
+        Reason for this is because reading into a file with the msg contents
+        is unnecessary with few built-in commands
+    */
     else if (strcmp(args[0], "help") == 0){
         printf("Type the name of a command followed by arguments and press enter.\n");
         printf("Built-in commands:\n");
@@ -177,29 +161,36 @@ int handle_builtin_commands(char **args){
         printf("  pwd - print working directory\n");
         return 1;
     }
+    // CD built in command 
     else if (strcmp(args[0], "cd") == 0){
+        // Error checks to make sure given argument is able to CD to
         if (args[1] == NULL)
             fprintf(stderr, "cd: expected argument\n");
         else{
+            // Checks if the return is a success or not
             if (chdir(args[1]) != 0)
                 perror("cd");
         }
         return 1;
     } 
+    // PWD built in command
     else if (strcmp(args[0], "pwd") == 0){
         char cwd[PATH_MAX];
 
+        // Error checks while also printing out the contents if it works
         if (getcwd(cwd, sizeof(cwd)) != NULL)
             printf("%s\n", cwd);
         else
             perror("pwd");
         return 1;
     }
+    // Echo built in command
     else if (strcmp(args[0], "echo") == 0){
+        // Remove the $ sign from the variable name
         if (args[1] != NULL && args[1][0] == '$'){
-            // Remove the $ sign from the variable name
             char *env_var = args[1] + 1;
             char *env_value = getenv(env_var);
+            // Printing actual $ values e.g 'echo $PATH'
             if (env_value)
                 printf("%s\n", env_value);
             else
@@ -207,6 +198,7 @@ int handle_builtin_commands(char **args){
             return 1;
         }
     }
+    // Wait built-in command
     else if (strcmp(args[0], "wait") == 0){
         int status;
         pid_t pid;
@@ -337,6 +329,7 @@ pid_t execute_single_command(char **args, int in_fd, int out_fd, bool wait_for_c
     return pid;
 }
 
+// function to handle signals which will be used later in shell.c
 void sigchld_handler(int sig){
     int status;
     while (waitpid(-1, &status, WNOHANG) > 0);

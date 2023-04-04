@@ -17,7 +17,7 @@ int main(){
     char line[MAX_LINE_LENGTH];
     char *args[MAX_LINE_LENGTH / 2 + 1];
 
-    // Register the signal handler for SIGCHLD
+    // Register the signal handler for SIGCHLD / basically kills off zombie processes (defunct)
     signal(SIGCHLD, sigchld_handler);
 
     while (1){
@@ -32,9 +32,11 @@ int main(){
         // Remove newline character from the last argument if present
         int last_arg_index = 0;
 
+        // Checks to see when the last arg is
         while (args[last_arg_index] != NULL)
             last_arg_index++;
 
+        // Checks there are at least 1 argument and removes the new line at the last argument
         if (last_arg_index > 0){
             char *last_arg = args[last_arg_index - 1];
             int last_arg_length = strlen(last_arg);
