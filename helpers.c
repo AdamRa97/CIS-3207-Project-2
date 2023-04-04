@@ -36,6 +36,8 @@ int find_special (char*args[], char * special){
 }
 
 /* 
+    RUBRIC RELATED POINTS
+    |Implementation on both pipes and redirection|
     To execute through commands and calls in 'execute_single_command' or 'execute_piped_commands'
     depending whether there are '|'.
 */
@@ -55,9 +57,11 @@ void execute_command(char** args){
             num_pipes++;
     }
 
+    // Executing piped commands if there are pipes
     if (num_pipes > 0)
         execute_piped_commands(args);
     else{
+        // Creating file descriptor variables for future when actually inputting or outputting
         int in_fd = -1;
         int out_fd = -1;
 
@@ -133,6 +137,7 @@ char *resolve_command_path(const char *cmd){
             free(path);
             return resolved_path;
         }
+        // If command not found, move to the next directory token
         dir = strtok(NULL, ":");
     }
     free(path);
@@ -211,15 +216,18 @@ int handle_builtin_commands(char **args){
 }
 
 void execute_piped_commands(char **args){
+    // Calculating how many pipes are in the command line
     int pipe_count = 0;
     for (int i = 0; args[i] != NULL; ++i){
         if (strcmp(args[i], "|") == 0)
             pipe_count++;
     }
 
+    // Calculating how many commands there are
     int num_cmds = pipe_count + 1;
     char ***cmds = malloc(num_cmds * sizeof(char **));
 
+    // Splitting the arguments
     int cmd_index = 0;
     cmds[cmd_index++] = args;
     for (int i = 0; args[i] != NULL; ++i){
@@ -229,6 +237,7 @@ void execute_piped_commands(char **args){
         }
     }
 
+    // Allocating memory which stores the fd for the pipes and creates pipes
     int *pipes = malloc(2 * pipe_count * sizeof(int));
     for (int i = 0; i < pipe_count; ++i){
         if (pipe(pipes + 2 * i) == -1){
@@ -247,6 +256,10 @@ void execute_piped_commands(char **args){
         args[num_args - 1] = NULL;
     }
 
+    /*
+        loop iterates through the cmds and for each of em, sets up input and output fd depending on the position
+        also utilizes ternary operator (?)
+    */
     for (int i = 0; i < num_cmds; ++i){
         int in_fd = (i == 0) ? -1 : pipes[2 * (i - 1)];
         int out_fd = (i == num_cmds - 1) ? -1 : pipes[2 * i + 1];
